@@ -1,7 +1,7 @@
 import asyncio
 import httpx
 from workers import tx_worker
-from logs.log import setup_logger, logger
+from utils.log import setup_logger, logger
 from utils import WalletDispatcher
 from bot import dp, bot
 from db import init_db
