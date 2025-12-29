@@ -1,3 +1,4 @@
+# config.py
 from pydantic import BaseModel, Field, field_validator
 from os import getenv
 from dotenv import load_dotenv
@@ -42,8 +43,12 @@ PHANTOM_FEE_ACCOUNTS = {
 
 TOKEN_SYMBOLS = {
     "WETZjtprkDMCcUxPi9PfWnowMRZkiGGHDb9rABuRZ2U": "WET",
+    "WET": "WETZjtprkDMCcUxPi9PfWnowMRZkiGGHDb9rABuRZ2U",
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
+    "USDC": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     "So11111111111111111111111111111111111111112": "WSOL",
+    "WSOL": "So11111111111111111111111111111111111111112",
+    "SOL": "So11111111111111111111111111111111111111112"
 }
 
 AGGREGATORS = {

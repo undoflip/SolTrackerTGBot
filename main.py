@@ -1,3 +1,4 @@
+# main.py
 import asyncio
 import httpx
 from workers import tx_worker
@@ -6,6 +7,7 @@ from utils import WalletDispatcher
 from bot import dp, bot
 from db import init_db
 from solana_tracker import parse_transaction
+from config import config
 
 async def main():
     setup_logger()
@@ -29,8 +31,6 @@ async def main():
         timeout=timeout,
         http2=False
     ) as client:
-        # print(await parse_transaction("51Gkq413jjTw6djhoNp57BNBKhUCrgpJWQfvyTYHpCERfYhixhFz1mHVv6AikgT9qmzU5JZz6W4KUucHDgTzDQFo", "GrQdkm9bnwr7XN3QZjh6bqVRTNVZZaAstNEG5Wqnzwe2", client))
-        
         wallet_dispatcher = WalletDispatcher(queue)
 
         tasks = [

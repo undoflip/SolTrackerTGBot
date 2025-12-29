@@ -1,4 +1,4 @@
-# bot.py
+# bot/bot.py
 from aiogram import Bot, Dispatcher
 
 from bot.handlers import router
@@ -11,7 +11,4 @@ dp = Dispatcher()
 dp.message.middleware(WhitelistMiddleware())
 dp.callback_query.middleware(WhitelistMiddleware())
 
-dp.include_router(router)  # 👈 ВАЖНО
-
-
-
+dp.include_router(router)

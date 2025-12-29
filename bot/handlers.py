@@ -1,4 +1,4 @@
-# handlers.py
+# bot/handlers.py
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from aiogram import F, Router

@@ -1,3 +1,4 @@
+# db/models.py
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import BigInteger, Boolean, ForeignKey, String
 from sqlalchemy import UniqueConstraint

@@ -1,3 +1,4 @@
+# workers/solana_worker.py
 import asyncio
 from solana_tracker import parse_transaction
 from utils import semaphore
@@ -79,8 +80,9 @@ async def tx_worker(queue: asyncio.Queue, client):
                                 )
                             )
                             logger.warning(
-                                f"Transaction [{parsed_transaction['signature']}] {parsed_transaction['side']}\n"
-                                f"Description: {parsed_transaction['description']}" + " -- Check this tx manually for details."
+                                f" <b>Transaction</b> [{parsed_transaction['signature']}] {parsed_transaction['side']}\n"
+                                f"📤 <b>Sent:</b> {parsed_transaction['sent_amount']:.6f} {sent_token_symbol}\n"
+                                f"🔗 <b>Description:</b> {parsed_transaction['description']}" + " -- Check this tx manually for details."
                                 f"| {user_wallet.label} >>> https://solscan.io/tx/{signature} |"
                             )
                         elif parsed_transaction['side'] == "SWAP":

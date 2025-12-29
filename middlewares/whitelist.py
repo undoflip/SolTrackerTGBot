@@ -1,3 +1,4 @@
+# middlewares/whitelist.py
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from config import config

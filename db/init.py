@@ -1,3 +1,4 @@
+# db/init.py
 from pathlib import Path
 from db.engine import engine
 from db.models import Base
