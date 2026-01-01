@@ -29,7 +29,7 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
         return None
 
     tx = data[0]
-    # print(tx)
+    print(tx)
     tx_type = tx.get("type")
     source = tx.get("source")
     if tx_type == "UNKNOWN":
@@ -86,7 +86,7 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
             if t.get("toUserAccount") == wallet:
                 balance_changes[mint] += amount
-
+        print(balance_changes)
         if not balance_changes:
             logger.warning(f"No balance changes for tx {signature}")
             return None
@@ -107,6 +107,7 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
                 balance_changes[TOKEN_SYMBOLS["SOL"]] += sol_delta
             
         # Filter zero / dust
+        print(balance_changes)
         balance_changes = {
             mint: amt for mint, amt in balance_changes.items()
             if abs(amt) > 1e-9
@@ -124,7 +125,14 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
         if sent_amount >= 0 or recv_amount <= 0:
             logger.warning(f"Could not determine swap direction for tx {signature}")
-            return None
+            return {
+            "signature": signature,
+            "wallet": wallet,
+            "side": "SKIPPED",
+            "sent_amount": sent_amount,
+            "sent_symbol": sent_symbol,
+            "description": tx.get("description")
+        }
 
         return {
             "signature": signature,
