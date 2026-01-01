@@ -86,7 +86,6 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
             if t.get("toUserAccount") == wallet:
                 balance_changes[mint] += amount
-        print(balance_changes)
         if not balance_changes:
             logger.warning(f"No balance changes for tx {signature}")
             return None
@@ -107,7 +106,6 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
                 balance_changes[TOKEN_SYMBOLS["SOL"]] += sol_delta
             
         # Filter zero / dust
-        print(balance_changes)
         balance_changes = {
             mint: amt for mint, amt in balance_changes.items()
             if abs(amt) > 1e-9
@@ -125,26 +123,18 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
         if sent_amount >= 0 or recv_amount <= 0:
             logger.warning(f"Could not determine swap direction for tx {signature}")
+        else:
             return {
-            "signature": signature,
-            "wallet": wallet,
-            "side": "SKIPPED",
-            "sent_amount": sent_amount,
-            "sent_symbol": sent_symbol,
-            "description": tx.get("description")
-        }
-
-        return {
-            "signature": signature,
-            "wallet": wallet,
-            "side": "SWAP",
-            "sent_amount": abs(sent_amount),
-            "sent_symbol": TOKEN_SYMBOLS.get(sent_mint, sent_mint[:6]),
-            "recv_amount": recv_amount,
-            "recv_symbol": TOKEN_SYMBOLS.get(recv_mint, recv_mint[:6]),
-            "aggregator": AGGREGATORS.get(source, source),
-            "description": tx.get("description")
-        }
+                "signature": signature,
+                "wallet": wallet,
+                "side": "SWAP",
+                "sent_amount": abs(sent_amount),
+                "sent_symbol": TOKEN_SYMBOLS.get(sent_mint, sent_mint[:6]),
+                "recv_amount": recv_amount,
+                "recv_symbol": TOKEN_SYMBOLS.get(recv_mint, recv_mint[:6]),
+                "aggregator": AGGREGATORS.get(source, source),
+                "description": tx.get("description")
+            }
 
     # ---------- OTHER ----------
     logger.info(f"Transaction {signature} type={tx_type} source={source} skipped")
