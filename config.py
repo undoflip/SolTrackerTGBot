@@ -16,6 +16,7 @@ class Config(BaseModel):
     max_subscriptions: int = 100
     log_level: str = "INFO"
     semaphore_limit: int = 8
+    max_retry: int = 5
 
     @field_validator("whitelisted_user_ids", mode="before")
     @classmethod
@@ -35,6 +36,7 @@ config = Config(
     max_subscriptions=int(getenv("MAX_SUBSCRIPTIONS", 100)),
     log_level=getenv("LOG_LEVEL", "INFO"),
     semaphore_limit=int(getenv("SEMAPHORE_LIMIT", 8)),
+    max_retry=int(getenv("MAX_RETRY", 5))
 )
 
 PHANTOM_FEE_ACCOUNTS = {

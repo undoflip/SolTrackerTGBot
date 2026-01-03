@@ -1,5 +1,7 @@
 # solana_tracker/parser.py
 import httpx
+import asyncio
+from random import randint
 from inspect import signature
 from collections import defaultdict
 
@@ -12,7 +14,10 @@ from sqlalchemy import select, func
 
 HELIUS_URL = "https://api-mainnet.helius-rpc.com/v0/transactions/"
 
-async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClient):
+async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClient, retry: int = 0):
+    if retry >= config.max_retry:
+        logger.error(f"SKIP {signature} because after {retry} reties we don't getting needed data")
+        return None
     resp = await client.post(
         HELIUS_URL,
         params={"api-key": config.helius_api_key},
@@ -21,12 +26,14 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
     if resp.status_code != 200:
         logger.error(f"Helius returned {resp.status_code} for tx {signature}")
-        return None
+        await asyncio.sleep(randint(5, 10))
+        return await parse_transaction(signature, wallet, client, retry+1)
 
     data = resp.json()
     if not data:
-        logger.error(f"No data returned from Helius API for tx {signature}, skipping all them!")
-        return None
+        logger.error(f"No data returned from Helius API for tx {signature}, retry through 5 seconds!")
+        await asyncio.sleep(randint(5, 10))
+        return await parse_transaction(signature, wallet, client, retry+1)
 
     tx = data[0]
     # print(tx)
