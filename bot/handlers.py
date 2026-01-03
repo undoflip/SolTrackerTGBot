@@ -12,7 +12,7 @@ from sqlalchemy import func
 from db.models import User, Wallet, Token
 from db.engine import AsyncSession
 
-from solana_tracker.parser import get_token_metadata
+from solana_tracker.parser import get_token_symbol
 from config import TOKEN_SYMBOLS
 
 from loguru import logger
@@ -260,15 +260,15 @@ async def add_token_input(msg: Message, state: FSMContext):
             await msg.answer("❌ Этот токен уже добавлен")
             return
         
-        token_name = await get_token_metadata(address)
-        if token_name is None:
+        token_symbol = await get_token_symbol(address)
+        if token_symbol is None:
             await msg.answer("❌ Не удалось получить метаданные токена. Проверь адрес.")
             return
 
         token = Token(
             user_id=user.id,
             mint=address,
-            symbol=token_name,
+            symbol=token_symbol,
             enabled=True
         )
         session.add(token)
@@ -276,7 +276,7 @@ async def add_token_input(msg: Message, state: FSMContext):
 
     await state.clear()
     await msg.answer(
-        f"✅ Token `{token_name}` добавлен",
+        f"✅ Token `{token_symbol}` добавлен",
         reply_markup=main_menu(user.enabled)
     )
 

@@ -29,21 +29,29 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
         return None
 
     tx = data[0]
-    print(tx)
+    # print(tx)
     tx_type = tx.get("type")
     source = tx.get("source")
     if tx_type == "UNKNOWN":
         tx_type = "SWAP"
-    if tx.get('fee') > 10000 and (tx_type == "TRANSFER" or source == "SYSTEM_PROGRAM"):
+    if tx.get('fee') > 8000 and (tx_type == "TRANSFER" or source == "SYSTEM_PROGRAM"):
         tx_type = "SWAP"
         source = "JUPITER"
+    
+    first_transfer_dict = tx["tokenTransfers"][0]
+    sent_mint = first_transfer_dict['mint']
+    sent_symbol = await get_token_symbol(sent_mint)
+    sent_amount = first_transfer_dict['tokenAmount']
+    if sent_symbol is None:
+        sent_symbol = TOKEN_SYMBOLS.get(t["mint"], "UNKNOWN")
+    
 
     # ---------- TRANSFER ----------
-    if tx_type == "TRANSFER" and tx.get('fee') < 10000: # excluding SOL transfers which have 10000 lamports fee
+    if tx_type == "TRANSFER" and tx.get('fee') < 8000: # excluding SOL transfers which have 10000 lamports fee
         if "to multiple accounts" in tx['description']:
             logger.warning(f"Transaction {signature} is spam transfer to multiple accounts, skipping")
             return None
-        # if tx.get("tokenTransfers") and tx['tokenTransfers'][0]['fromUserAccount'] == wallet or tx.get("nativeTransfers") and tx['nativeTransfers'][0]['fromUserAccount'] == wallet:
+
         if tx.get("tokenTransfers"):
             t = tx["tokenTransfers"][0]
             if t["tokenAmount"] > 0:
@@ -51,8 +59,8 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
                     "signature": signature,
                     "wallet": wallet,
                     "side": "TRANSFER",
-                    "sent_amount": t["tokenAmount"],
-                    "sent_symbol": TOKEN_SYMBOLS.get(t["mint"], t["mint"][:6]),
+                    "sent_amount": sent_amount,
+                    "sent_symbol": sent_symbol,
                     "to_address": t["toUserAccount"],
                     "description": tx.get("description")
                 }
@@ -64,7 +72,7 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
                     "signature": signature,
                     "wallet": wallet,
                     "side": "TRANSFER",
-                    "sent_amount": t["amount"] / 1_000_000_000,
+                    "sent_amount": sent_amount / 1_000_000_000,
                     "sent_symbol": "SOL",
                     "to_address": t["toUserAccount"],
                     "description": tx.get("description")
@@ -89,7 +97,6 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
         if not balance_changes:
             logger.warning(f"No balance changes for tx {signature}")
             return None
-            
         # -- SOL (native) delta for aggregator such as Wintermute Bot --
         if TOKEN_SYMBOLS["SOL"] not in balance_changes and len(balance_changes) < 2:
             balance_changes[TOKEN_SYMBOLS["SOL"]] = 0
@@ -104,7 +111,30 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
             if balance_changes and abs(sol_delta) > 1e-6:
                 balance_changes[TOKEN_SYMBOLS["SOL"]] += sol_delta
+        # This swap token to token and not recieve for signer
+        if TOKEN_SYMBOLS["SOL"] in balance_changes and balance_changes[TOKEN_SYMBOLS["SOL"]] == 0:
+            balance_changes.clear()
+
+            mint = tx['tokenTransfers'][0]["mint"]
+            amount = float(tx['tokenTransfers'][0]["tokenAmount"])
+            balance_changes[mint] = -amount
             
+            first_transfer_own = tx['tokenTransfers'][0]['fromUserAccount']
+            if first_transfer_own == wallet:
+                
+                to_user_reciever = tx['tokenTransfers'][0]['toUserAccount']
+                for t in tx['tokenTransfers'][1:]:
+                    if t['toUserAccount'].lower() == to_user_reciever.lower():
+                        mint = t["mint"]
+                        amount = float(t["tokenAmount"])
+                        balance_changes[mint] = amount
+            else:
+                from_user_reciever = tx['tokenTransfers'][0]['fromUserAccount']
+                for t in tx['tokenTransfers'][1:]:
+                    if from_user_reciever.lower() == t['fromUserAccount'].lower() and wallet.lower() == t['toUserAccount'].lower():
+                        mint = t["mint"]
+                        amount = float(t["tokenAmount"])
+                        balance_changes[mint] = amount
         # Filter zero / dust
         balance_changes = {
             mint: amt for mint, amt in balance_changes.items()
@@ -117,9 +147,11 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
 
         # SENT = biggest negative
         sent_mint, sent_amount = min(balance_changes.items(), key=lambda x: x[1])
+        sent_symbol = await get_token_symbol(sent_mint)
 
         # RECEIVED = biggest positive
         recv_mint, recv_amount = max(balance_changes.items(), key=lambda x: x[1])
+        recv_symbol = await get_token_symbol(recv_mint)
 
         if sent_amount >= 0 or recv_amount <= 0:
             logger.warning(f"Could not determine swap direction for tx {signature}")
@@ -129,28 +161,15 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
                 "wallet": wallet,
                 "side": "SWAP",
                 "sent_amount": abs(sent_amount),
-                "sent_symbol": TOKEN_SYMBOLS.get(sent_mint, sent_mint[:6]),
+                "sent_symbol": sent_symbol,
                 "recv_amount": recv_amount,
-                "recv_symbol": TOKEN_SYMBOLS.get(recv_mint, recv_mint[:6]),
+                "recv_symbol": recv_symbol if recv_symbol else TOKEN_SYMBOLS.get(recv_mint, recv_mint[:6]),
                 "aggregator": AGGREGATORS.get(source, source),
                 "description": tx.get("description")
             }
 
     # ---------- OTHER ----------
     logger.info(f"Transaction {signature} type={tx_type} source={source} skipped")
-
-    token_transfers = tx['tokenTransfers'][0]  if 'tokenTransfers' in tx else []
-    sent_symbol = "UNKNOWN"
-    sent_amount = 0
-
-    if token_transfers:
-        token_address = token_transfers['mint']
-        async with AsyncSession() as session:
-            token = await session.scalar(
-                select(Token).where(func.lower(Token.mint) == token_address.lower())
-            )
-            sent_symbol = token.symbol if token else "UNKNOWN"
-        sent_amount = token_transfers['tokenAmount']
 
     return {
             "signature": signature,
@@ -162,7 +181,7 @@ async def parse_transaction(signature: str, wallet: str, client: httpx.AsyncClie
         }
 
 
-async def get_token_metadata(address: str):
+async def get_token_symbol(address: str):
     limits = httpx.Limits(
         max_connections=8,
         max_keepalive_connections=2
@@ -197,3 +216,4 @@ async def get_token_metadata(address: str):
             return metadata['onChainMetadata']['metadata']['data']['symbol']
         except:
             return None
+        
